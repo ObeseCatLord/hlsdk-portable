@@ -176,18 +176,18 @@ void CEgon::PrimaryAttack( void )
 	Vector	position, velocity;
 	Vector forward, right, up;
 
-	UTIL_MakeVectors( m_pPlayer->pev->v_angle + m_pPlayer->pev->punchangle );
+	UTIL_MakeVectors( m_pPlayer->GetWeaponViewAngles() );
 
 	forward = gpGlobals->v_forward;
 	right = gpGlobals->v_right;
 	up = gpGlobals->v_up;
 
-	position = m_pPlayer->pev->origin + m_pPlayer->pev->view_ofs;
+	position = m_pPlayer->GetWeaponPosition();
 	position = position + forward * 20;
 	position = position + right * 5;
 	position = position + up * 3;
 
-	CEinarFlameRocket::FlameCreate( position, m_pPlayer->pev->v_angle, ENT( m_pPlayer->pev ) );
+	CEinarFlameRocket::FlameCreate( position, m_pPlayer->GetWeaponAngles(), ENT( m_pPlayer->pev ) );
 #endif
 	if( !m_iClip && m_pPlayer->m_rgAmmo[m_iPrimaryAmmoType] <= 0 )
 		// HEV suit - indicate out of ammo condition

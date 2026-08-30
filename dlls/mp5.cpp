@@ -224,11 +224,11 @@ void CMP5::SecondaryAttack( void )
 	// play this sound through BODY channel so we can hear it if player didn't stop firing MP3
 	EMIT_SOUND( ENT( m_pPlayer->pev ), CHAN_WEAPON, RANDOM_LONG( 0, 1 ) ? "weapons/glauncher.wav" : "weapons/glauncher2.wav", 0.8, ATTN_NORM );
 
- 	UTIL_MakeVectors( m_pPlayer->pev->v_angle + m_pPlayer->pev->punchangle );
+	UTIL_MakeVectors( m_pPlayer->GetWeaponViewAngles() );
 
 	// we don't add in player velocity anymore.
 	CGrenade::ShootContact( m_pPlayer->pev,
-					m_pPlayer->pev->origin + m_pPlayer->pev->view_ofs + gpGlobals->v_forward * 16.0f,
+					m_pPlayer->GetWeaponPosition() + gpGlobals->v_forward * 16.0f,
 					gpGlobals->v_forward * 800.0f );
 
 	m_flNextPrimaryAttack = UTIL_WeaponTimeBase() + 1.0f;

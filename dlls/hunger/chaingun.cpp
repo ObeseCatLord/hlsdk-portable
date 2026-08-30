@@ -208,7 +208,8 @@ void CWeaponEinarChaingun::Fire( float flSpread, float flCycleTime, BOOL fUseAut
 	// player "shoot" animation
 	m_pPlayer->SetAnimation( PLAYER_ATTACK1 );
 
-	Vector vecSrc = m_pPlayer->GetGunPosition();
+	UTIL_MakeVectors( m_pPlayer->GetWeaponViewAngles() );
+	Vector vecSrc = m_pPlayer->GetWeaponPosition();
 	Vector vecAiming = gpGlobals->v_forward;
 	Vector vecDir = m_pPlayer->FireBulletsPlayer( iClipNotEmpty ? 4 : 2, vecSrc, vecAiming, Vector( flSpread, flSpread, flSpread ), 8192, BULLET_PLAYER_MP5, 0, 0, m_pPlayer->pev, m_pPlayer->random_seed );
 

@@ -138,9 +138,9 @@ void CWeaponEinarTFCSniper::PrimaryAttack()
 	// player "shoot" animation
 	m_pPlayer->SetAnimation( PLAYER_ATTACK1 );
 
-	UTIL_MakeVectors( m_pPlayer->pev->v_angle + m_pPlayer->pev->punchangle );
+	UTIL_MakeVectors( m_pPlayer->GetWeaponViewAngles() );
 
-	Vector vecSrc = m_pPlayer->GetGunPosition();
+	Vector vecSrc = m_pPlayer->GetWeaponPosition();
 	Vector vecAiming = gpGlobals->v_forward;
 
 #if CLIENT_DLL

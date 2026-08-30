@@ -24,6 +24,8 @@
 
 #define	SHOVEL_BODYHIT_VOLUME 128
 #define	SHOVEL_WALLHIT_VOLUME 512
+#define SHOVEL_MIN_PHYSICAL_SWING_SPEED 70.0f
+#define SHOVEL_PHYSICAL_LENGTH 24.0f
 
 extern void FindHullIntersection( const Vector &vecSrc, TraceResult &tr, float *mins, float *maxs, edict_t *pEntity );
 
@@ -52,6 +54,10 @@ void CWeaponEinarShovel::Spawn()
 	m_iClip = -1;
 
 	FallInit();// get ready to fall down.
+#if !CLIENT_DLL
+	ClearPhysicalSwingState();
+	m_flPhysicalLastWoosh = 0.0f;
+#endif
 }
 
 void CWeaponEinarShovel::Precache()
@@ -107,9 +113,48 @@ BOOL CWeaponEinarShovel::Deploy()
 
 void CWeaponEinarShovel::Holster( int skiplocal /* = 0 */ )
 {
+#if !CLIENT_DLL
+	ClearPhysicalSwingState();
+#endif
 	m_pPlayer->m_flNextAttack = UTIL_WeaponTimeBase() + 0.5f;
 	SendWeaponAnim( SHOVEL_HOLSTER );
 }
+
+void CWeaponEinarShovel::ItemPostFrame()
+{
+	CBasePlayerWeapon::ItemPostFrame();
+#if !CLIENT_DLL
+	if( !m_pPlayer || !m_pPlayer->HasFreshVRPose() ) { ClearPhysicalSwingState(); return; }
+	const float speed = m_pPlayer->GetWeaponVelocity().Length();
+	if( speed < SHOVEL_MIN_PHYSICAL_SWING_SPEED ) { ClearPhysicalSwingState(); return; }
+	if( !m_fPhysicalSwinging && gpGlobals->time > m_flPhysicalLastWoosh + 0.5f ) { EMIT_SOUND_DYN( ENT( pev ), CHAN_ITEM, "weapons/cbar_miss1.wav", 1.0f, ATTN_NORM, 0, 98 + RANDOM_LONG( 0, 3 ) ); m_flPhysicalLastWoosh = gpGlobals->time; }
+	m_fPhysicalSwinging = TRUE;
+	CheckPhysicalSwing( speed );
+#endif
+}
+
+#if !CLIENT_DLL
+void CWeaponEinarShovel::CheckPhysicalSwing( float speed )
+{
+	TraceResult tr;
+	UTIL_MakeVectors( m_pPlayer->GetWeaponViewAngles() );
+	const Vector vecSrc = m_pPlayer->GetWeaponPosition();
+	const Vector vecEnd = vecSrc + gpGlobals->v_up * SHOVEL_PHYSICAL_LENGTH;
+	UTIL_TraceLine( vecSrc, vecEnd, dont_ignore_monsters, ENT( m_pPlayer->pev ), &tr );
+	if( tr.fStartSolid || tr.fAllSolid || tr.flFraction >= 1.0f ) return;
+	CBaseEntity *pEntity = CBaseEntity::Instance( tr.pHit );
+	if( !pEntity || HasHitEntityThisSwing( pEntity ) ) return;
+	RememberHitEntityThisSwing( pEntity );
+	m_flPhysicalHitCount += 1.0f;
+	ClearMultiDamage();
+	pEntity->TraceAttack( m_pPlayer->pev, gSkillData.plrDmgCrowbar * ( speed / SHOVEL_MIN_PHYSICAL_SWING_SPEED ) / m_flPhysicalHitCount, gpGlobals->v_up, &tr, DMG_CLUB );
+	ApplyMultiDamage( m_pPlayer->pev, m_pPlayer->pev );
+	CLIENT_COMMAND( m_pPlayer->edict(), "vr_haptic 90 -1 1\n" );
+}
+BOOL CWeaponEinarShovel::HasHitEntityThisSwing( CBaseEntity *pEntity ) { for( int i = 0; i < ARRAYSIZE( m_hPhysicalHitEntities ); ++i ) if( (CBaseEntity *)m_hPhysicalHitEntities[i] == pEntity ) return TRUE; return FALSE; }
+void CWeaponEinarShovel::RememberHitEntityThisSwing( CBaseEntity *pEntity ) { for( int i = 0; i < ARRAYSIZE( m_hPhysicalHitEntities ); ++i ) if( !m_hPhysicalHitEntities[i] ) { m_hPhysicalHitEntities[i] = pEntity; return; } }
+void CWeaponEinarShovel::ClearPhysicalSwingState() { m_fPhysicalSwinging = FALSE; m_flPhysicalHitCount = 0.0f; for( int i = 0; i < ARRAYSIZE( m_hPhysicalHitEntities ); ++i ) m_hPhysicalHitEntities[i] = NULL; }
+#endif
 
 void CWeaponEinarShovel::PrimaryAttack()
 {
@@ -136,8 +181,8 @@ int CWeaponEinarShovel::Swing( int fFirst )
 
 	TraceResult tr;
 
-	UTIL_MakeVectors( m_pPlayer->pev->v_angle );
-	Vector vecSrc = m_pPlayer->GetGunPosition();
+	UTIL_MakeVectors( m_pPlayer->GetWeaponViewAngles() );
+	Vector vecSrc = m_pPlayer->GetWeaponPosition();
 	Vector vecEnd = vecSrc + gpGlobals->v_forward * 32;
 
 	UTIL_TraceLine( vecSrc, vecEnd, dont_ignore_monsters, ENT( m_pPlayer->pev ), &tr );

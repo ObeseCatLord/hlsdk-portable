@@ -144,10 +144,11 @@ void CWeaponEinarAP9::AP9Fire( float flSpread, float flCycleTime, BOOL fUseAutoA
 	m_pPlayer->m_iWeaponVolume = NORMAL_GUN_VOLUME;
 	m_pPlayer->m_iWeaponFlash = NORMAL_GUN_FLASH;
 
-	Vector vecSrc = m_pPlayer->GetGunPosition();
+	UTIL_MakeVectors( m_pPlayer->GetWeaponViewAngles() );
+	Vector vecSrc = m_pPlayer->GetWeaponPosition();
 	Vector vecAiming;
 	
-	if( fUseAutoAim )
+	if( fUseAutoAim && !m_pPlayer->HasFreshVRPose() )
 	{
 		vecAiming = m_pPlayer->GetAutoaimVector( AUTOAIM_10DEGREES );
 	}

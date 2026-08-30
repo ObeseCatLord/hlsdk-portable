@@ -1,9 +1,9 @@
 /***
 *
 *	Copyright (c) 1996-2002, Valve LLC. All rights reserved.
-*	
-*	This product contains software technology licensed from Id 
-*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc. 
+*
+*	This product contains software technology licensed from Id
+*	Software, Inc. ("Id Technology").  Id Technology (c) 1996 Id Software, Inc.
 *	All Rights Reserved.
 *
 *   Use, distribution, and modification of this source code and/or resulting
@@ -30,6 +30,7 @@
 #include "event_api.h"
 #include "event_args.h"
 #include "in_defs.h"
+#include "vr_client.h"
 
 #include <string.h>
 
@@ -39,6 +40,36 @@
 extern engine_studio_api_t IEngineStudio;
 
 static int g_tracerCount[32];
+
+static void VR_HapticLocalWeaponFire( int idx, int bulletType )
+{
+	const unsigned int dominant = (unsigned int)VR_GetDominantHand();
+	const unsigned int support = dominant == VR_CLIENT_HAND_LEFT ? VR_CLIENT_HAND_RIGHT : VR_CLIENT_HAND_LEFT;
+
+	if( !EV_IsLocal( idx ) )
+		return;
+
+	switch( bulletType )
+	{
+	case BULLET_PLAYER_MP5:
+		VR_Haptic( 60.0f, dominant, 0.75f );
+		if( VR_IsWeaponStabilised() )
+			VR_Haptic( 60.0f, support, 0.5f );
+		break;
+	case BULLET_PLAYER_BUCKSHOT:
+		VR_Haptic( 120.0f, dominant, 0.9f );
+		if( VR_IsWeaponStabilised() )
+			VR_Haptic( 120.0f, support, 0.75f );
+		break;
+	case BULLET_PLAYER_357:
+		VR_Haptic( 120.0f, dominant, 0.8f );
+		break;
+	case BULLET_PLAYER_9MM:
+	default:
+		VR_Haptic( 120.0f, dominant, 0.4f );
+		break;
+	}
+}
 
 extern "C" char PM_FindTextureType( char *name );
 
@@ -77,7 +108,7 @@ void EV_VehiclePitchAdjust( event_args_t *args );
 #define VECTOR_CONE_4DEGREES Vector( 0.03490f, 0.03490f, 0.03490f )
 #define VECTOR_CONE_5DEGREES Vector( 0.04362f, 0.04362f, 0.04362f )
 #define VECTOR_CONE_6DEGREES Vector( 0.05234f, 0.05234f, 0.05234f )
-#define VECTOR_CONE_7DEGREES Vector( 0.06105f, 0.06105f, 0.06105f )	
+#define VECTOR_CONE_7DEGREES Vector( 0.06105f, 0.06105f, 0.06105f )
 #define VECTOR_CONE_8DEGREES Vector( 0.06976f, 0.06976f, 0.06976f )
 #define VECTOR_CONE_9DEGREES Vector( 0.07846f, 0.07846f, 0.07846f )
 #define VECTOR_CONE_10DEGREES Vector( 0.08716f, 0.08716f, 0.08716f )
@@ -144,7 +175,7 @@ float EV_HLDM_PlayTextureSound( int idx, pmtrace_t *ptr, float *vecSrc, float *v
 			chTextureType = PM_FindTextureType( szbuffer );
 		}
 	}
-	
+
 	switch (chTextureType)
 	{
 	default:
@@ -383,7 +414,9 @@ void EV_HLDM_FireBullets( int idx, float *forward, float *right, float *up, int 
 	int iShot;
 	int tracer;
 
-	for( iShot = 1; iShot <= cShots; iShot++ )	
+	VR_HapticLocalWeaponFire( idx, iBulletType );
+
+	for( iShot = 1; iShot <= cShots; iShot++ )
 	{
 		vec3_t vecDir, vecEnd;
 		float x, y, z;
@@ -406,7 +439,7 @@ void EV_HLDM_FireBullets( int idx, float *forward, float *right, float *up, int 
 		gEngfuncs.pEventAPI->EV_PushPMStates();
 
 		// Now add in all of the players.
-		gEngfuncs.pEventAPI->EV_SetSolidPlayers( idx - 1 );	
+		gEngfuncs.pEventAPI->EV_SetSolidPlayers( idx - 1 );
 
 		gEngfuncs.pEventAPI->EV_SetTraceHull( 2 );
 		gEngfuncs.pEventAPI->EV_PlayerTrace( vecSrc, vecEnd, PM_NORMAL, -1, &tr );
@@ -479,7 +512,7 @@ static void EV_FireGlock_Impl( event_args_t *args )
 
 		V_PunchAxis( 0, -2.0 );
 	}
- 
+
 	EV_GetDefaultShellInfo( args, origin, velocity, ShellVelocity, ShellOrigin, forward, right, up, 20, -12, 4 );
 
 	EV_EjectBrass( ShellOrigin, ShellVelocity, angles[YAW], shell, TE_BOUNCE_SHELL );
@@ -596,7 +629,7 @@ void EV_FireShotGunDouble( event_args_t *args )
 	{
 		EV_GetDefaultShellInfo( args, origin, velocity, ShellVelocity, ShellOrigin, forward, right, up, 32, -12, 6 );
 
-		EV_EjectBrass( ShellOrigin, ShellVelocity, angles[ YAW ], shell, TE_BOUNCE_SHOTSHELL ); 
+		EV_EjectBrass( ShellOrigin, ShellVelocity, angles[ YAW ], shell, TE_BOUNCE_SHOTSHELL );
 	}
 
 	gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_WEAPON, "weapons/dbarrel1.wav", gEngfuncs.pfnRandomFloat( 0.98, 1.0 ), ATTN_NORM, 0, 85 + gEngfuncs.pfnRandomLong( 0, 0x1f ) );
@@ -649,7 +682,7 @@ void EV_FireShotGunSingle( event_args_t *args )
 
 	EV_GetDefaultShellInfo( args, origin, velocity, ShellVelocity, ShellOrigin, forward, right, up, 32, -12, 6 );
 
-	EV_EjectBrass ( ShellOrigin, ShellVelocity, angles[YAW], shell, TE_BOUNCE_SHOTSHELL ); 
+	EV_EjectBrass ( ShellOrigin, ShellVelocity, angles[YAW], shell, TE_BOUNCE_SHOTSHELL );
 
 	gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_WEAPON, "weapons/sbarrel1.wav", gEngfuncs.pfnRandomFloat( 0.95, 1.0 ), ATTN_NORM, 0, 93 + gEngfuncs.pfnRandomLong( 0, 0x1f ) );
 
@@ -706,7 +739,7 @@ void EV_FireMP5( event_args_t *args )
 
 	EV_GetDefaultShellInfo( args, origin, velocity, ShellVelocity, ShellOrigin, forward, right, up, 20, -12, 4 );
 
-	EV_EjectBrass ( ShellOrigin, ShellVelocity, angles[YAW], shell, TE_BOUNCE_SHELL ); 
+	EV_EjectBrass ( ShellOrigin, ShellVelocity, angles[YAW], shell, TE_BOUNCE_SHELL );
 
 	switch( gEngfuncs.pfnRandomLong( 0, 1 ) )
 	{
@@ -724,8 +757,39 @@ void EV_FireMP5( event_args_t *args )
 	EV_HLDM_FireBullets( idx, forward, right, up, 1, vecSrc, vecAiming, 8192, BULLET_PLAYER_MP5, 2, &g_tracerCount[idx - 1], args->fparam1, args->fparam2 );
 }
 
+// We only predict the animation and sound
+// The grenade is still launched from the server.
+void EV_FireMP52( event_args_t *args )
+{
+	int idx;
+	vec3_t origin;
+
+	idx = args->entindex;
+	VectorCopy( args->origin, origin );
+
+	if( EV_IsLocal( idx ) )
+	{
+		VR_Haptic( 100.0f, (unsigned int)VR_GetDominantHand(), 0.6f );
+		gEngfuncs.pEventAPI->EV_WeaponAnimation( MP5_LAUNCH, 0 );
+		V_PunchAxis( 0, -10 );
+	}
+
+	switch( gEngfuncs.pfnRandomLong( 0, 1 ) )
+	{
+	case 0:
+		gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_WEAPON, "weapons/glauncher.wav", 1, ATTN_NORM, 0, 94 + gEngfuncs.pfnRandomLong( 0, 0xf ) );
+		break;
+	case 1:
+		gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_WEAPON, "weapons/glauncher2.wav", 1, ATTN_NORM, 0, 94 + gEngfuncs.pfnRandomLong( 0, 0xf ) );
+		break;
+	}
+}
 //======================
-//	   PHYTON START 
+//		 MP5 END
+//======================
+
+//======================
+//	   PHYTON START
 //	     ( .357 )
 //======================
 void EV_FirePython( event_args_t *args )
@@ -775,12 +839,12 @@ void EV_FirePython( event_args_t *args )
 	EV_HLDM_FireBullets( idx, forward, right, up, 1, vecSrc, vecAiming, 8192, BULLET_PLAYER_357, 0, &g_tracerCount[idx - 1], args->fparam1, args->fparam2 );
 }
 //======================
-//	    PHYTON END 
+//	    PHYTON END
 //	     ( .357 )
 //======================
 
 //======================
-//	   GAUSS START 
+//	   GAUSS START
 //======================
 #define SND_STOP			(1 << 5)
 #define SND_CHANGE_PITCH	(1 << 7)		// duplicated in protocol.h change sound pitch
@@ -870,11 +934,12 @@ void EV_FireGauss( event_args_t *args )
 
 	if( EV_IsLocal( idx ) )
 	{
+		VR_Haptic( 120.0f, (unsigned int)VR_GetDominantHand(), 0.5f );
 		V_PunchAxis( 0.0f, -2.0f );
 		gEngfuncs.pEventAPI->EV_WeaponAnimation( GAUSS_FIRE2, 0 );
 
 		if( m_fPrimaryFire == false )
-			 g_flApplyVel = flDamage; 
+			 g_flApplyVel = flDamage;
 	}
 
 	gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_WEAPON, "weapons/gauss2.wav", 0.5f + flDamage * ( 1.0f / 400.0f ), ATTN_NORM, 0, 85 + gEngfuncs.pfnRandomLong( 0, 0x1f ) );
@@ -884,12 +949,12 @@ void EV_FireGauss( event_args_t *args )
 		nMaxHits--;
 
 		gEngfuncs.pEventAPI->EV_SetUpPlayerPrediction( false, true );
-		
+
 		// Store off the old count
 		gEngfuncs.pEventAPI->EV_PushPMStates();
-	
+
 		// Now add in all of the players.
-		gEngfuncs.pEventAPI->EV_SetSolidPlayers( idx - 1 );	
+		gEngfuncs.pEventAPI->EV_SetSolidPlayers( idx - 1 );
 
 		gEngfuncs.pEventAPI->EV_SetTraceHull( 2 );
 		gEngfuncs.pEventAPI->EV_PlayerTrace( vecSrc, vecDest, PM_NORMAL, -1, &tr );
@@ -908,7 +973,7 @@ void EV_FireGauss( event_args_t *args )
 			}
 			fFirstBeam = 0;
 
-			gEngfuncs.pEfxAPI->R_BeamEntPoint( 
+			gEngfuncs.pEfxAPI->R_BeamEntPoint(
 				idx | 0x1000,
 				tr.endpos,
 				m_iBeam,
@@ -954,7 +1019,7 @@ void EV_FireGauss( event_args_t *args )
 
 			n = -DotProduct( tr.plane.normal, forward );
 
-			if( n < 0.5f ) // 60 degrees	
+			if( n < 0.5f ) // 60 degrees
 			{
 				// ALERT( at_console, "reflect %f\n", n );
 				// reflect
@@ -998,7 +1063,7 @@ void EV_FireGauss( event_args_t *args )
 					break;
 				}
 				fHasPunched = 1;
-				
+
 				// try punching through wall if secondary attack (primary is incapable of breaking through)
 				if( !m_fPrimaryFire )
 				{
@@ -1069,7 +1134,7 @@ void EV_FireGauss( event_args_t *args )
 				{
 					if( m_fPrimaryFire )
 					{
-						// slug doesn't punch through ever with primary 
+						// slug doesn't punch through ever with primary
 						// fire, so leave a little glowy bit and make some balls
 						gEngfuncs.pEfxAPI->R_TempSprite( tr.endpos, vec3_origin, 0.2, m_iGlow, kRenderGlow, kRenderFxNoDissipation, 200.0f / 255.0f, 0.3, FTENT_FADEOUT );
 						{
@@ -1091,7 +1156,637 @@ void EV_FireGauss( event_args_t *args )
 	}
 }
 //======================
-//	   GAUSS END 
+//	   GAUSS END
+//======================
+
+//======================
+//	   CROWBAR START
+//======================
+enum crowbar_e
+{
+	CROWBAR_IDLE = 0,
+	CROWBAR_DRAW,
+	CROWBAR_HOLSTER,
+	CROWBAR_ATTACK1HIT,
+	CROWBAR_ATTACK1MISS,
+	CROWBAR_ATTACK2MISS,
+	CROWBAR_ATTACK2HIT,
+	CROWBAR_ATTACK3MISS,
+#if !CROWBAR_IDLE_ANIM
+	CROWBAR_ATTACK3HIT
+#else
+	CROWBAR_ATTACK3HIT,
+	CROWBAR_IDLE2,
+	CROWBAR_IDLE3
+#endif
+};
+
+int g_iSwing;
+
+//Only predict the miss sounds, hit sounds are still played
+//server side, so players don't get the wrong idea.
+void EV_Crowbar( event_args_t *args )
+{
+	int idx;
+	vec3_t origin;
+	//vec3_t angles;
+	//vec3_t velocity;
+
+	idx = args->entindex;
+	VectorCopy( args->origin, origin );
+
+	//Play Swing sound
+	gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_WEAPON, "weapons/cbar_miss1.wav", 1, ATTN_NORM, 0, PITCH_NORM );
+
+	if( EV_IsLocal( idx ) )
+	{
+		VR_Haptic( 70.0f, (unsigned int)VR_GetDominantHand(), 0.35f );
+
+		switch( (g_iSwing++) % 3 )
+		{
+			case 0:
+				gEngfuncs.pEventAPI->EV_WeaponAnimation( CROWBAR_ATTACK1MISS, 0 );
+				break;
+			case 1:
+				gEngfuncs.pEventAPI->EV_WeaponAnimation( CROWBAR_ATTACK2MISS, 0 );
+				break;
+			case 2:
+				gEngfuncs.pEventAPI->EV_WeaponAnimation( CROWBAR_ATTACK3MISS, 0 );
+				break;
+		}
+	}
+}
+//======================
+//	   CROWBAR END
+//======================
+
+//======================
+//	  CROSSBOW START
+//======================
+enum crossbow_e
+{
+	CROSSBOW_IDLE1 = 0,	// full
+	CROSSBOW_IDLE2,		// empty
+	CROSSBOW_FIDGET1,	// full
+	CROSSBOW_FIDGET2,	// empty
+	CROSSBOW_FIRE1,		// full
+	CROSSBOW_FIRE2,		// reload
+	CROSSBOW_FIRE3,		// empty
+	CROSSBOW_RELOAD,	// from empty
+	CROSSBOW_DRAW1,		// full
+	CROSSBOW_DRAW2,		// empty
+	CROSSBOW_HOLSTER1,	// full
+	CROSSBOW_HOLSTER2	// empty
+};
+
+//=====================
+// EV_BoltCallback
+// This function is used to correct the origin and angles
+// of the bolt, so it looks like it's stuck on the wall.
+//=====================
+void EV_BoltCallback( struct tempent_s *ent, float frametime, float currenttime )
+{
+	ent->entity.origin = ent->entity.baseline.vuser1;
+	ent->entity.angles = ent->entity.baseline.vuser2;
+}
+
+void EV_FireCrossbow2( event_args_t *args )
+{
+	vec3_t vecSrc, vecEnd;
+	vec3_t up, right, forward;
+	pmtrace_t tr;
+
+	int idx;
+	vec3_t origin;
+	vec3_t angles;
+	vec3_t velocity;
+
+	idx = args->entindex;
+	VectorCopy( args->origin, origin );
+	VectorCopy( args->angles, angles );
+
+	VectorCopy( args->velocity, velocity );
+
+	AngleVectors( angles, forward, right, up );
+
+	EV_GetGunPosition( args, vecSrc, origin );
+
+	VectorMA( vecSrc, 8192, forward, vecEnd );
+
+	gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_WEAPON, "weapons/xbow_fire1.wav", 1, ATTN_NORM, 0, 93 + gEngfuncs.pfnRandomLong( 0, 0xF ) );
+	gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_ITEM, "weapons/xbow_reload1.wav", gEngfuncs.pfnRandomFloat( 0.95f, 1.0f ), ATTN_NORM, 0, 93 + gEngfuncs.pfnRandomLong( 0, 0xF ) );
+
+	if( EV_IsLocal( idx ) )
+	{
+		VR_Haptic( 50.0f, (unsigned int)VR_GetDominantHand(), 0.6f );
+
+		if( args->iparam1 )
+			gEngfuncs.pEventAPI->EV_WeaponAnimation( CROSSBOW_FIRE1, 0 );
+		else
+			gEngfuncs.pEventAPI->EV_WeaponAnimation( CROSSBOW_FIRE3, 0 );
+	}
+
+	// Store off the old count
+	gEngfuncs.pEventAPI->EV_PushPMStates();
+
+	// Now add in all of the players.
+	gEngfuncs.pEventAPI->EV_SetSolidPlayers ( idx - 1 );
+	gEngfuncs.pEventAPI->EV_SetTraceHull( 2 );
+	gEngfuncs.pEventAPI->EV_PlayerTrace( vecSrc, vecEnd, PM_NORMAL, -1, &tr );
+
+	//We hit something
+	if( tr.fraction < 1.0f )
+	{
+		physent_t *pe = gEngfuncs.pEventAPI->EV_GetPhysent( tr.ent );
+
+		//Not the world, let's assume we hit something organic ( dog, cat, uncle joe, etc ).
+		if( pe->solid != SOLID_BSP )
+		{
+			switch( gEngfuncs.pfnRandomLong( 0, 1 ) )
+			{
+			case 0:
+				gEngfuncs.pEventAPI->EV_PlaySound( idx, tr.endpos, CHAN_BODY, "weapons/xbow_hitbod1.wav", 1, ATTN_NORM, 0, PITCH_NORM );
+				break;
+			case 1:
+				gEngfuncs.pEventAPI->EV_PlaySound( idx, tr.endpos, CHAN_BODY, "weapons/xbow_hitbod2.wav", 1, ATTN_NORM, 0, PITCH_NORM );
+				break;
+			}
+		}
+		//Stick to world but don't stick to glass, it might break and leave the bolt floating. It can still stick to other non-transparent breakables though.
+		else if( pe->rendermode == kRenderNormal )
+		{
+			gEngfuncs.pEventAPI->EV_PlaySound( 0, tr.endpos, CHAN_BODY, "weapons/xbow_hit1.wav", gEngfuncs.pfnRandomFloat( 0.95f, 1.0f ), ATTN_NORM, 0, PITCH_NORM );
+
+			//Not underwater, do some sparks...
+			if( gEngfuncs.PM_PointContents( tr.endpos, NULL ) != CONTENTS_WATER )
+				 gEngfuncs.pEfxAPI->R_SparkShower( tr.endpos );
+
+			vec3_t vBoltAngles;
+			int iModelIndex = gEngfuncs.pEventAPI->EV_FindModelIndex( "models/crossbow_bolt.mdl" );
+
+			VectorAngles( forward, vBoltAngles );
+
+			TEMPENTITY *bolt = gEngfuncs.pEfxAPI->R_TempModel( tr.endpos - forward * 10, Vector( 0, 0, 0 ), vBoltAngles , 5, iModelIndex, TE_BOUNCE_NULL );
+
+			if( bolt )
+			{
+				bolt->flags |= ( FTENT_CLIENTCUSTOM ); //So it calls the callback function.
+				bolt->entity.baseline.vuser1 = tr.endpos - forward * 10; // Pull out a little bit
+				bolt->entity.baseline.vuser2 = vBoltAngles; //Look forward!
+				bolt->callback = EV_BoltCallback; //So we can set the angles and origin back. (Stick the bolt to the wall)
+			}
+		}
+	}
+
+	gEngfuncs.pEventAPI->EV_PopPMStates();
+}
+
+//TODO: Fully predict the fliying bolt.
+void EV_FireCrossbow( event_args_t *args )
+{
+	int idx;
+	vec3_t origin;
+
+	idx = args->entindex;
+	VectorCopy( args->origin, origin );
+
+	gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_WEAPON, "weapons/xbow_fire1.wav", 1, ATTN_NORM, 0, 93 + gEngfuncs.pfnRandomLong( 0, 0xF ) );
+	gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_ITEM, "weapons/xbow_reload1.wav", gEngfuncs.pfnRandomFloat( 0.95f, 1.0f ), ATTN_NORM, 0, 93 + gEngfuncs.pfnRandomLong( 0, 0xF ) );
+
+	//Only play the weapon anims if I shot it.
+	if( EV_IsLocal( idx ) )
+	{
+		VR_Haptic( 50.0f, (unsigned int)VR_GetDominantHand(), 0.4f );
+
+		if( args->iparam1 )
+			gEngfuncs.pEventAPI->EV_WeaponAnimation( CROSSBOW_FIRE1, 0 );
+		else
+			gEngfuncs.pEventAPI->EV_WeaponAnimation( CROSSBOW_FIRE3, 0 );
+
+		V_PunchAxis( 0.0f, -2.0f );
+	}
+}
+//======================
+//	   CROSSBOW END
+//======================
+
+//======================
+//	    RPG START
+//======================
+enum rpg_e
+{
+	RPG_IDLE = 0,
+	RPG_FIDGET,
+	RPG_RELOAD,		// to reload
+	RPG_FIRE2,		// to empty
+	RPG_HOLSTER1,	// loaded
+	RPG_DRAW1,		// loaded
+	RPG_HOLSTER2,	// unloaded
+	RPG_DRAW_UL,	// unloaded
+	RPG_IDLE_UL,	// unloaded idle
+	RPG_FIDGET_UL	// unloaded fidget
+};
+
+void EV_FireRpg( event_args_t *args )
+{
+	int idx;
+	vec3_t origin;
+
+	idx = args->entindex;
+	VectorCopy( args->origin, origin );
+
+	gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_WEAPON, "weapons/rocketfire1.wav", 0.9, ATTN_NORM, 0, PITCH_NORM );
+	gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_ITEM, "weapons/glauncher.wav", 0.7, ATTN_NORM, 0, PITCH_NORM );
+
+	//Only play the weapon anims if I shot it.
+	if( EV_IsLocal( idx ) )
+	{
+		const unsigned int dominant = (unsigned int)VR_GetDominantHand();
+		VR_Haptic( 200.0f, dominant, 0.9f );
+		if( VR_IsWeaponStabilised() )
+			VR_Haptic( 200.0f, dominant == VR_CLIENT_HAND_LEFT ? VR_CLIENT_HAND_RIGHT : VR_CLIENT_HAND_LEFT, 0.8f );
+
+		gEngfuncs.pEventAPI->EV_WeaponAnimation( RPG_FIRE2, 0 );
+
+		V_PunchAxis( 0, -5.0 );
+	}
+}
+//======================
+//	     RPG END
+//======================
+
+//======================
+//	    EGON START
+//======================
+enum egon_e
+{
+	EGON_IDLE1 = 0,
+	EGON_FIDGET1,
+	EGON_ALTFIREON,
+	EGON_ALTFIRECYCLE,
+	EGON_ALTFIREOFF,
+	EGON_FIRE1,
+	EGON_FIRE2,
+	EGON_FIRE3,
+	EGON_FIRE4,
+	EGON_DRAW,
+	EGON_HOLSTER
+};
+
+int g_fireAnims1[] = { EGON_FIRE1, EGON_FIRE2, EGON_FIRE3, EGON_FIRE4 };
+int g_fireAnims2[] = { EGON_ALTFIRECYCLE };
+
+enum EGON_FIRESTATE
+{
+	FIRE_OFF,
+	FIRE_CHARGE
+};
+
+enum EGON_FIREMODE
+{
+	FIRE_NARROW,
+	FIRE_WIDE
+};
+
+#define	EGON_PRIMARY_VOLUME		450
+#define EGON_BEAM_SPRITE		"sprites/xbeam1.spr"
+#define EGON_FLARE_SPRITE		"sprites/XSpark1.spr"
+#define EGON_SOUND_OFF			"weapons/egon_off1.wav"
+#define EGON_SOUND_RUN			"weapons/egon_run3.wav"
+#define EGON_SOUND_STARTUP		"weapons/egon_windup2.wav"
+
+#if !defined(ARRAYSIZE)
+#define ARRAYSIZE(p)		( sizeof(p) /sizeof(p[0]) )
+#endif
+
+BEAM *pBeam;
+BEAM *pBeam2;
+TEMPENTITY *pFlare;	// Vit_amiN: egon's beam flare
+
+void EV_EgonFlareCallback( struct tempent_s *ent, float frametime, float currenttime )
+{
+	float delta = currenttime - ent->tentOffset.z;	// time past since the last scale
+	if( delta >= ent->tentOffset.y )
+	{
+		ent->entity.curstate.scale += ent->tentOffset.x * delta;
+		ent->tentOffset.z = currenttime;
+	}
+}
+
+void EV_EgonFire( event_args_t *args )
+{
+	int idx, /*iFireState,*/ iFireMode;
+	vec3_t origin;
+
+	idx = args->entindex;
+	VectorCopy( args->origin, origin );
+	//iFireState = args->iparam1;
+	iFireMode = args->iparam2;
+	int iStartup = args->bparam1;
+
+	if( iStartup )
+	{
+		if( EV_IsLocal( idx ) )
+			VR_Haptic( 1000.0f, (unsigned int)VR_GetDominantHand(), 0.5f );
+		if( iFireMode == FIRE_WIDE )
+			gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_WEAPON, EGON_SOUND_STARTUP, 0.98, ATTN_NORM, 0, 125 );
+		else
+			gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_WEAPON, EGON_SOUND_STARTUP, 0.9, ATTN_NORM, 0, 100 );
+	}
+	else
+	{
+		// If there is any sound playing already, kill it. - Solokiller
+		// This is necessary because multiple sounds can play on the same channel at the same time.
+		// In some cases, more than 1 run sound plays when the egon stops firing, in which case only the earliest entry in the list is stopped.
+		// This ensures no more than 1 of those is ever active at the same time.
+		gEngfuncs.pEventAPI->EV_StopSound( idx, CHAN_STATIC, EGON_SOUND_RUN );
+
+		if( iFireMode == FIRE_WIDE )
+			gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_STATIC, EGON_SOUND_RUN, 0.98, ATTN_NORM, 0, 125 );
+		else
+			gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_STATIC, EGON_SOUND_RUN, 0.9, ATTN_NORM, 0, 100 );
+	}
+
+	//Only play the weapon anims if I shot it.
+	if( EV_IsLocal( idx ) )
+		gEngfuncs.pEventAPI->EV_WeaponAnimation( g_fireAnims1[gEngfuncs.pfnRandomLong( 0, 3 )], 0 );
+
+	if( iStartup == 1 && EV_IsLocal( idx ) && !( pBeam || pBeam2 || pFlare ) && cl_lw->value ) //Adrian: Added the cl_lw check for those lital people that hate weapon prediction.
+	{
+		vec3_t vecSrc, vecEnd, angles, forward, right, up;
+		pmtrace_t tr;
+
+		cl_entity_t *pl = gEngfuncs.GetEntityByIndex( idx );
+
+		if( pl )
+		{
+			VectorCopy( gHUD.m_vecAngles, angles );
+
+			AngleVectors( angles, forward, right, up );
+
+			EV_GetGunPosition( args, vecSrc, pl->origin );
+
+			VectorMA( vecSrc, 2048, forward, vecEnd );
+
+			gEngfuncs.pEventAPI->EV_SetUpPlayerPrediction( false, true );
+
+			// Store off the old count
+			gEngfuncs.pEventAPI->EV_PushPMStates();
+
+			// Now add in all of the players.
+			gEngfuncs.pEventAPI->EV_SetSolidPlayers( idx - 1 );
+
+			gEngfuncs.pEventAPI->EV_SetTraceHull( 2 );
+			gEngfuncs.pEventAPI->EV_PlayerTrace( vecSrc, vecEnd, PM_NORMAL, -1, &tr );
+
+			gEngfuncs.pEventAPI->EV_PopPMStates();
+
+			int iBeamModelIndex = gEngfuncs.pEventAPI->EV_FindModelIndex( EGON_BEAM_SPRITE );
+
+			float r = 50.0f;
+			float g = 50.0f;
+			float b = 125.0f;
+
+			// if( IEngineStudio.IsHardware() )
+			{
+				r /= 255.0f;
+				g /= 255.0f;
+				b /= 255.0f;
+			}
+
+			pBeam = gEngfuncs.pEfxAPI->R_BeamEntPoint( idx | 0x1000, tr.endpos, iBeamModelIndex, 99999, 3.5, 0.2, 0.7, 55, 0, 0, r, g, b );
+
+			if( pBeam )
+				 pBeam->flags |= ( FBEAM_SINENOISE );
+
+			pBeam2 = gEngfuncs.pEfxAPI->R_BeamEntPoint( idx | 0x1000, tr.endpos, iBeamModelIndex, 99999, 5.0, 0.08, 0.7, 25, 0, 0, r, g, b );
+
+			// Vit_amiN: egon beam flare
+			pFlare = gEngfuncs.pEfxAPI->R_TempSprite( tr.endpos, vec3_origin, 1.0, gEngfuncs.pEventAPI->EV_FindModelIndex( EGON_FLARE_SPRITE ), kRenderGlow, kRenderFxNoDissipation, 1.0, 99999, FTENT_SPRCYCLE | FTENT_PERSIST );
+		}
+	}
+
+	if( pFlare )	// Vit_amiN: store the last mode for EV_EgonStop()
+	{
+		pFlare->tentOffset.x = ( iFireMode == FIRE_WIDE ) ? 1.0f : 0.0f;
+	}
+}
+
+void EV_EgonStop( event_args_t *args )
+{
+	int idx;
+	vec3_t origin;
+
+	idx = args->entindex;
+	VectorCopy( args->origin, origin );
+
+	gEngfuncs.pEventAPI->EV_StopSound( idx, CHAN_STATIC, EGON_SOUND_RUN );
+
+	if( args->iparam1 )
+		 gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_WEAPON, EGON_SOUND_OFF, 0.98, ATTN_NORM, 0, 100 );
+	if( EV_IsLocal( idx ) )
+		VR_Haptic( 0.0f, (unsigned int)VR_GetDominantHand(), 0.0f );
+
+	if( EV_IsLocal( idx ) )
+	{
+		if( pBeam )
+		{
+			pBeam->die = 0.0f;
+			pBeam = NULL;
+		}
+
+		if( pBeam2 )
+		{
+			pBeam2->die = 0.0f;
+			pBeam2 = NULL;
+		}
+
+		if( pFlare )	// Vit_amiN: egon beam flare
+		{
+			pFlare->die = gEngfuncs.GetClientTime();
+
+			if( gEngfuncs.GetMaxClients() == 1 || !(pFlare->flags & FTENT_NOMODEL) )
+			{
+				if( pFlare->tentOffset.x != 0.0f )	// true for iFireMode == FIRE_WIDE
+				{
+					pFlare->callback = &EV_EgonFlareCallback;
+					pFlare->fadeSpeed = 2.0;			// fade out will take 0.5 sec
+					pFlare->tentOffset.x = 10.0;		// scaling speed per second
+					pFlare->tentOffset.y = 0.1;			// min time between two scales
+					pFlare->tentOffset.z = pFlare->die;	// the last callback run time
+					pFlare->flags = FTENT_FADEOUT | FTENT_CLIENTCUSTOM;
+				}
+			}
+
+			pFlare = NULL;
+		}
+	}
+}
+//======================
+//	    EGON END
+//======================
+
+//======================
+//	   HORNET START
+//======================
+enum hgun_e
+{
+	HGUN_IDLE1 = 0,
+	HGUN_FIDGETSWAY,
+	HGUN_FIDGETSHAKE,
+	HGUN_DOWN,
+	HGUN_UP,
+	HGUN_SHOOT
+};
+
+void EV_HornetGunFire( event_args_t *args )
+{
+	int idx; //, iFireMode;
+	vec3_t origin, angles; //, vecSrc, forward, right, up;
+
+	idx = args->entindex;
+	VectorCopy( args->origin, origin );
+	VectorCopy( args->angles, angles );
+	//iFireMode = args->iparam1;
+
+	//Only play the weapon anims if I shot it.
+	if( EV_IsLocal( idx ) )
+	{
+		VR_Haptic( 100.0f, (unsigned int)VR_GetDominantHand(), 0.5f );
+		V_PunchAxis( 0, gEngfuncs.pfnRandomLong( 0, 2 ) );
+		gEngfuncs.pEventAPI->EV_WeaponAnimation( HGUN_SHOOT, 0 );
+	}
+
+	switch( gEngfuncs.pfnRandomLong( 0, 2 ) )
+	{
+		case 0:
+			gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_WEAPON, "agrunt/ag_fire1.wav", 1, ATTN_NORM, 0, 100 );
+			break;
+		case 1:
+			gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_WEAPON, "agrunt/ag_fire2.wav", 1, ATTN_NORM, 0, 100 );
+			break;
+		case 2:
+			gEngfuncs.pEventAPI->EV_PlaySound( idx, origin, CHAN_WEAPON, "agrunt/ag_fire3.wav", 1, ATTN_NORM, 0, 100 );
+			break;
+	}
+}
+//======================
+//	   HORNET END
+//======================
+
+//======================
+//	   TRIPMINE START
+//======================
+enum tripmine_e
+{
+	TRIPMINE_IDLE1 = 0,
+	TRIPMINE_IDLE2,
+	TRIPMINE_ARM1,
+	TRIPMINE_ARM2,
+	TRIPMINE_FIDGET,
+	TRIPMINE_HOLSTER,
+	TRIPMINE_DRAW,
+	TRIPMINE_WORLD,
+	TRIPMINE_GROUND
+};
+
+//We only check if it's possible to put a trip mine
+//and if it is, then we play the animation. Server still places it.
+void EV_TripmineFire( event_args_t *args )
+{
+	int idx;
+	vec3_t vecSrc, angles, view_ofs, forward;
+	pmtrace_t tr;
+
+	idx = args->entindex;
+	const bool last = args->bparam1 != 0;
+	VectorCopy( args->origin, vecSrc );
+	VectorCopy( args->angles, angles );
+
+	AngleVectors( angles, forward, NULL, NULL );
+
+	if( !EV_IsLocal ( idx ) )
+		return;
+
+	// Grab predicted result for local player
+	gEngfuncs.pEventAPI->EV_LocalPlayerViewheight( view_ofs );
+
+	vecSrc = vecSrc + view_ofs;
+
+	// Store off the old count
+	gEngfuncs.pEventAPI->EV_PushPMStates();
+
+	// Now add in all of the players.
+	gEngfuncs.pEventAPI->EV_SetSolidPlayers ( idx - 1 );
+	gEngfuncs.pEventAPI->EV_SetTraceHull( 2 );
+	gEngfuncs.pEventAPI->EV_PlayerTrace( vecSrc, vecSrc + forward * 128.0f, PM_NORMAL, -1, &tr );
+
+	//Hit something solid
+	if( tr.fraction < 1.0f && !last )
+	{
+		VR_Haptic( 40.0f, (unsigned int)VR_GetDominantHand(), 0.35f );
+		gEngfuncs.pEventAPI->EV_WeaponAnimation ( TRIPMINE_DRAW, 0 );
+	}
+
+	gEngfuncs.pEventAPI->EV_PopPMStates();
+}
+//======================
+//	   TRIPMINE END
+//======================
+
+//======================
+//	   SQUEAK START
+//======================
+enum squeak_e
+{
+	SQUEAK_IDLE1 = 0,
+	SQUEAK_FIDGETFIT,
+	SQUEAK_FIDGETNIP,
+	SQUEAK_DOWN,
+	SQUEAK_UP,
+	SQUEAK_THROW
+};
+
+#define VEC_HULL_MIN		Vector( -16, -16, -36 )
+#define VEC_DUCK_HULL_MIN	Vector( -16, -16, -18 )
+
+void EV_SnarkFire( event_args_t *args )
+{
+	int idx;
+	vec3_t vecSrc, angles, /*view_ofs,*/ forward;
+	pmtrace_t tr;
+
+	idx = args->entindex;
+	VectorCopy( args->origin, vecSrc );
+	VectorCopy( args->angles, angles );
+
+	AngleVectors( angles, forward, NULL, NULL );
+
+	if( !EV_IsLocal ( idx ) )
+		return;
+
+	if( args->ducking )
+		vecSrc = vecSrc - ( VEC_HULL_MIN - VEC_DUCK_HULL_MIN );
+
+	// Store off the old count
+	gEngfuncs.pEventAPI->EV_PushPMStates();
+
+	// Now add in all of the players.
+	gEngfuncs.pEventAPI->EV_SetSolidPlayers( idx - 1 );
+	gEngfuncs.pEventAPI->EV_SetTraceHull( 2 );
+	gEngfuncs.pEventAPI->EV_PlayerTrace( vecSrc + forward * 20, vecSrc + forward * 64, PM_NORMAL, -1, &tr );
+
+	//Find space to drop the thing.
+	if( tr.allsolid == 0 && tr.startsolid == 0 && tr.fraction > 0.25f )
+	{
+		VR_Haptic( 70.0f, (unsigned int)VR_GetDominantHand(), 0.4f );
+		gEngfuncs.pEventAPI->EV_WeaponAnimation( SQUEAK_THROW, 0 );
+	}
+
+	gEngfuncs.pEventAPI->EV_PopPMStates();
+}
+//======================
+//	   SQUEAK END
 //======================
 
 void EV_TrainPitchAdjust( event_args_t *args )
@@ -1128,7 +1823,7 @@ void EV_TrainPitchAdjust( event_args_t *args )
 		break;
 	case 3:
 		pszSound = "plats/ttrain3.wav";
-		break; 
+		break;
 	case 4:
 		pszSound = "plats/ttrain4.wav";
 		break;
@@ -1550,7 +2245,7 @@ void EV_FireChaingun2( event_args_t *args )
 	VectorCopy( args->origin, origin );
 	VectorCopy( args->angles, angles );
 	VectorCopy( args->velocity, velocity );
-	iClipNotEmpty = args->bparam1;         
+	iClipNotEmpty = args->bparam1;
 	AngleVectors( angles, forward, right, up );
 
 	shell = gEngfuncs.pEventAPI->EV_FindModelIndex( "models/shell.mdl" );// brass shell

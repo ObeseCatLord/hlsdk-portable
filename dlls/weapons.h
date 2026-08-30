@@ -358,6 +358,12 @@ public:
 	virtual void Holster( int skiplocal = 0 );
 	virtual BOOL UseDecrement( void ) { return FALSE; };
 
+#if CLIENT_DLL
+	// The sight is a local preference, so prediction owns its transient effects.
+	virtual void MakeLaser( void );
+	void KillLaser( void );
+#endif
+
 	int	PrimaryAmmoIndex(); 
 	int	SecondaryAmmoIndex(); 
 
@@ -536,9 +542,13 @@ public:
 	int AddToPlayer( CBasePlayer *pPlayer );
 
 	void PrimaryAttack( void );
+	void ItemPostFrame( void );
 	int Swing( int fFirst );
 	BOOL Deploy( void );
 	void Holster( int skiplocal = 0 );
+#if CLIENT_DLL
+	void MakeLaser( void ) { KillLaser(); }
+#endif
 #if CROWBAR_IDLE_ANIM
 	void WeaponIdle();
 #endif
@@ -553,6 +563,18 @@ public:
 		return FALSE;
 #endif
 	}
+private:
+	unsigned short m_usCrowbar;
+#if !CLIENT_DLL
+	void CheckPhysicalSwing( float speed );
+	BOOL HasHitEntityThisSwing( CBaseEntity *pEntity );
+	void RememberHitEntityThisSwing( CBaseEntity *pEntity );
+	void ClearPhysicalSwingState( void );
+	BOOL m_fPhysicalSwinging;
+	float m_flPhysicalLastWoosh;
+	float m_flPhysicalHitCount;
+	EHANDLE m_hPhysicalHitEntities[128];
+#endif
 };
 
 class CPython : public CBasePlayerWeapon
@@ -635,6 +657,7 @@ public:
 	void FireSniperBolt( void );
 	void PrimaryAttack( void );
 	void SecondaryAttack( void );
+	void ItemPostFrame( void );
 	int AddToPlayer( CBasePlayer *pPlayer );
 	BOOL Deploy( );
 	void Holster( int skiplocal = 0 );
@@ -897,6 +920,9 @@ public:
 	void Holster( int skiplocal = 0 );
 	void WeaponIdle( void );
 	static CGrenade *ShootTimed( entvars_t *pevOwner, Vector vecStart, Vector vecVelocity, float time );
+#if CLIENT_DLL
+	void MakeLaser( void ) { KillLaser(); }
+#endif
 
 	virtual BOOL UseDecrement( void )
 	{ 
@@ -930,6 +956,10 @@ public:
 	BOOL CanDeploy( void );
 	BOOL Deploy( void );
 	BOOL IsUseable( void );
+
+#if CLIENT_DLL
+	void MakeLaser( void ) { KillLaser(); }
+#endif
 
 	void Holster( int skiplocal = 0 );
 	void WeaponIdle( void );
@@ -966,6 +996,10 @@ public:
 	void Holster( int skiplocal = 0 );
 	void WeaponIdle( void );
 
+#if CLIENT_DLL
+	void MakeLaser( void ) { KillLaser(); }
+#endif
+
 	virtual BOOL UseDecrement( void )
 	{ 
 #if CLIENT_WEAPONS
@@ -991,6 +1025,10 @@ public:
 	void WeaponIdle( void );
 	int m_fJustThrown;
 
+#if CLIENT_DLL
+	void MakeLaser( void ) { KillLaser(); }
+#endif
+
 	virtual BOOL UseDecrement( void )
 	{
 #if CLIENT_WEAPONS
@@ -1014,6 +1052,7 @@ public:
 
 	void PrimaryAttack();
 	int Swing( int fFirst );
+	void ItemPostFrame();
 	BOOL Deploy();
 	void Holster( int skiplocal = 0 );
 #if CROWBAR_IDLE_ANIM
@@ -1021,6 +1060,17 @@ public:
 #endif
 	int m_iSwing;
 	TraceResult m_trHit;
+
+#if !CLIENT_DLL
+	void CheckPhysicalSwing( float speed );
+	BOOL HasHitEntityThisSwing( CBaseEntity *pEntity );
+	void RememberHitEntityThisSwing( CBaseEntity *pEntity );
+	void ClearPhysicalSwingState();
+	BOOL m_fPhysicalSwinging;
+	float m_flPhysicalLastWoosh;
+	float m_flPhysicalHitCount;
+	EHANDLE m_hPhysicalHitEntities[128];
+#endif
 
 	virtual BOOL UseDecrement()
 	{
@@ -1045,6 +1095,7 @@ public:
 
 	void PrimaryAttack();
 	int Swing( int fFirst );
+	void ItemPostFrame();
 	BOOL Deploy();
 	void Holster( int skiplocal = 0 );
 #if CROWBAR_IDLE_ANIM
@@ -1052,6 +1103,17 @@ public:
 #endif
 	int m_iSwing;
 	TraceResult m_trHit;
+
+#if !CLIENT_DLL
+	void CheckPhysicalSwing( float speed );
+	BOOL HasHitEntityThisSwing( CBaseEntity *pEntity );
+	void RememberHitEntityThisSwing( CBaseEntity *pEntity );
+	void ClearPhysicalSwingState();
+	BOOL m_fPhysicalSwinging;
+	float m_flPhysicalLastWoosh;
+	float m_flPhysicalHitCount;
+	EHANDLE m_hPhysicalHitEntities[128];
+#endif
 
 	virtual BOOL UseDecrement( void )
 	{
