@@ -4589,6 +4589,14 @@ void CBasePlayer::EnableControl( BOOL fControl )
 //=========================================================
 Vector CBasePlayer::GetAutoaimVector( float flDelta )
 {
+	// Tracked weapons are already aimed by the player's hand.  Do not bend
+	// their projectiles back toward the desktop view direction.
+	if( HasFreshVRPose() )
+	{
+		UTIL_MakeVectors( GetWeaponViewAngles() );
+		return gpGlobals->v_forward;
+	}
+
 	if( g_iSkillLevel == SKILL_HARD )
 	{
 		UTIL_MakeVectors( pev->v_angle + pev->punchangle );
